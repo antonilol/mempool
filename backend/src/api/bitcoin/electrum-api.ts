@@ -126,6 +126,42 @@ class BitcoindElectrsApi extends BitcoinApi implements AbstractBitcoinApi {
     }
   }
 
+  async $getOutspend(txId: string, vout: number): Promise<IEsploraApi.Outspend> {
+    const res: {} | {
+      height: number;
+    } & ({} | {
+      spender_height: number;
+      spender_txhash: string;
+      spender_vin: number;
+    }) = await this.electrumClient.request('blockchain.outpoint.status', [txId, vout]);
+
+    if ('spender_txhash' in res) {
+      const confirmed = res.spender_height > 0;
+      let status: IEsploraApi.Status = { confirmed };
+      if (confirmed) {
+        status.block_height = res.spender_height;
+        // TODO check if these values (block_hash and block_time) are actually used at the frontend
+        const blockHash = await this.$getBlockHash(res.spender_height);
+        status.block_hash = blockHash;
+        status.block_time = (await this.$getBlock(blockHash)).timestamp;
+      }
+      return {
+        spent: true,
+        txid: res.spender_txhash,
+        vin: res.spender_vin,
+        status,
+      };
+    } else {
+      return { spent: false };
+    }
+  }
+
+  async $getOutspends(txId: string): Promise<IEsploraApi.Outspend[]> {
+    // TODO check if this can be sped up with a batch call
+    const tx = await this.$getRawTransaction(txId, true);
+    return Promise.all(tx.vout.map((_, vout) => this.$getOutspend(txId, vout)));
+  }
+
   private $getScriptHashBalance(scriptHash: string): Promise<IElectrumApi.ScriptHashBalance> {
     return this.electrumClient.blockchainScripthash_getBalance(this.encodeScriptHash(scriptHash));
   }
