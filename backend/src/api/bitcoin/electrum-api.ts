@@ -163,7 +163,11 @@ class BitcoindElectrsApi extends BitcoinApi implements AbstractBitcoinApi {
   async $getOutspends(txId: string): Promise<IEsploraApi.Outspend[]> {
     // TODO check if this can be sped up with a batch call
     const tx = await this.$getRawTransaction(txId, true);
-    return Promise.all(tx.vout.map((_, vout) => this.$getOutspend(txId, vout)));
+    const ret: IEsploraApi.Outspend[] = [];
+    for (let i = 0; i < tx.vout.length; i++) {
+      ret.push(await this.$getOutspend(txId, i));
+    }
+    return ret;
   }
 
   private $getScriptHashBalance(scriptHash: string): Promise<IElectrumApi.ScriptHashBalance> {
