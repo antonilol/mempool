@@ -127,6 +127,10 @@ class BitcoindElectrsApi extends BitcoinApi implements AbstractBitcoinApi {
   }
 
   async $getOutspend(txId: string, vout: number): Promise<IEsploraApi.Outspend> {
+    if (!(await super.$getOutspend(txId, vout)).spent) {
+      return { spent: false };
+    }
+
     const res: {} | {
       height: number;
     } & ({} | {
